@@ -1,7 +1,7 @@
 import { BaseMessage, DataType, DataTypes, EvalMessage } from '../other/message';
 import { ClientRefType, ClusterClient } from '../core/clusterClient';
+import { MessageTypes, PackageType, Serializable } from '../types';
 import { ShardingUtils } from '../other/shardingUtils';
-import { MessageTypes, Serializable } from '../types';
 import { Worker } from '../classes/worker';
 import { Cluster } from '../core/cluster';
 import { Child } from '../classes/child';
@@ -18,6 +18,12 @@ export class ClusterHandler {
 				if (this.cluster.ready) {
 					this.cluster.manager._debug(`[Cluster ${this.cluster.id}] Received duplicate ready signal, ignoring.`);
 					return;
+				}
+
+				const readyData = message.data as { packageType?: PackageType | null } | undefined;
+				if (readyData?.packageType && !this.cluster.manager.options.packageType) {
+					this.cluster.manager.options.packageType = readyData.packageType;
+					this.cluster.manager._debug(`[Cluster ${this.cluster.id}] Package type set to: ${readyData.packageType}`);
 				}
 
 				this.cluster.ready = true;

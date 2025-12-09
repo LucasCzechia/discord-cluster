@@ -279,6 +279,7 @@ export class ClusterClient<
 
 		this.process.send({
 			_type: MessageTypes.ClientReady,
+			data: { packageType: this.packageType },
 		} as BaseMessage<'readyOrSpawn'>);
 
 		this.emit('ready', this);

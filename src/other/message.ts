@@ -1,4 +1,4 @@
-import { EvalOptions, MessageTypes, SerializableInput, Serializable } from '../types';
+import { EvalOptions, MessageTypes, SerializableInput, Serializable, PackageType } from '../types';
 import { ClusterClient } from '../core/clusterClient';
 import { Cluster } from '../core/cluster';
 
@@ -34,7 +34,7 @@ export type DataTypes<A = object, P extends object = object> = {
 	normal: A extends never ? Serializable : A;
 	reply: DataTypes<A, P>['normal'];
 	eval: EvalMessage<P>;
-	readyOrSpawn: undefined;
+	readyOrSpawn: { packageType?: PackageType | null } | undefined;
 	heartbeat: undefined;
 	respawnAll: RespawnMessage;
 	respawnSome: RespawnSomeMessage;
