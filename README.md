@@ -5,6 +5,7 @@ Transparent cross-cluster operations for discord.js bots. No more `broadcastEval
 [![npm version](https://img.shields.io/npm/v/discord-cluster.svg)](https://www.npmjs.com/package/discord-cluster)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.4.0-brightgreen.svg)](https://nodejs.org/)
+[![Docs](https://img.shields.io/badge/docs-discord--cluster.vercel.app-blue.svg)](https://discord-cluster.vercel.app)
 
 ---
 
