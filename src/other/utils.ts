@@ -1,7 +1,5 @@
 import { Worker as WorkerThread, workerData } from 'worker_threads';
-import type { RefShardingCoreClient } from 'src/core/coreClient';
 import { ClusterClientData, PackageType } from '../types';
-import { ClientRefType } from 'src/core/clusterClient';
 import { ChildProcess } from 'child_process';
 
 export function getInfo(): ClusterClientData {
@@ -72,10 +70,6 @@ export function detectLibraryFromClient(client: any): PackageType | null {
 	}
 
 	return null;
-}
-
-export function isCoreClient(client: ClientRefType): client is RefShardingCoreClient {
-	return detectLibraryFromClient(client) === '@discordjs/core';
 }
 
 export function isWorkerThread(process: ChildProcess | WorkerThread): process is WorkerThread {

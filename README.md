@@ -1,143 +1,332 @@
-## Introduction
+# ⚡ discord-cluster
 
-Welcome to Status Sharding! This package is designed to provide an efficient and flexible solution for sharding Discord bots, allowing you to scale your bot across multiple processes or workers.
+Transparent cross-cluster operations for discord.js bots. No more `broadcastEval`.
 
-## Features
+[![npm version](https://img.shields.io/npm/v/discord-cluster.svg)](https://www.npmjs.com/package/discord-cluster)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.4.0-brightgreen.svg)](https://nodejs.org/)
 
-- **Efficient Sharding**: The sharding package utilizes an optimized sharding algorithm to distribute bot functionality across multiple shards and clusters.
-- **Enhanced Performance**: Improve your bot's performance by leveraging the power of parallel processing and multi-threading.
-- **Flexible Configuration**: Easily configure the number of shards, clusters, and other parameters to suit your bot's needs.
-- **Comprehensive Documentation**: Detailed documentation and usage examples are provided to help you get started quickly.
-- **Scalability**: Scale your bot's capabilities by distributing the workload across multiple processes or workers.
-- **Customizable**: Extend and customize the sharding package to adapt it to your specific requirements.
-- **Discord.js Core Library Support**: Works seamlessly with **discord.js** as well as its **core sub-libraries** (e.g., `@discordjs/rest`, `@discordjs/ws`, etc.).
-- **Cross Hosting Support**: _Comming soon!_
+---
 
-## Comparison
+## ⚡ Why discord-cluster?
 
-Here's a comparison between Status Sharding, Discord Hybrid Sharding and Discord.js Sharding.
+Clustering in discord.js sucks. `broadcastEval` serializes functions as strings, `eval()`s them remotely, loses all TypeScript types, and broadcasts to ALL clusters even when only one is needed.
 
-| Feature                     | Status Sharding | Discord Hybrid Sharding | Discord.js Sharding |
-| --------------------------- | --------------- | ----------------------- | ------------------- |
-| Flexible configuration      | ✔️              | ✔️                      | ✔️                  |
-| Clustering Support          | ✔️              | ✔️                      | ❌                  |
-| Processes & Workers         | ✔️              | ✔️                      | ❌                  |
-| Comprehensive documentation | ✔️              | ❌                      | ❌                  |
-| Performance optimization    | ✔️              | ❌                      | ❌                  |
-| Discord.js core lib support | ✔️              | ❌                      | ❌                  |
+**discord-cluster** makes clustering feel like using discord.js normally:
+- **Cache first** — checks local cache before any IPC
+- **Targeted IPC** — routes to the correct cluster using shard math, not broadcast
+- **REST fallback** — falls back to Discord API when cache misses
+- **Full TypeScript** — no eval, no string serialization, real types
 
-## Installation
+Fork of [status-sharding](https://github.com/Digital39999/status-sharding), fully rewritten.
+
+---
+
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔍 **Transparent API** | `cluster.guilds.fetch()`, `cluster.channels.send()`, `cluster.members.fetch()` work across clusters automatically |
+| 📡 **Type-Safe IPC** | Named request/response handlers with full TypeScript types. No eval. |
+| 💾 **Shared Store** | Cross-cluster key-value store with TTL, sub-millisecond latency |
+| 📢 **Cross-Cluster Events** | Pub/sub between clusters with optional targeting |
+| 📊 **Structured Results** | `ResultCollection` with `.values()`, `.errors()`, `.sum()`, `.allOk()` |
+| 🛡️ **Process Guard** | Orphan detection, stale cleanup, graceful shutdown with cleanup tasks |
+| 🔄 **Rolling Restarts** | Zero-downtime restarts with `manager.rollingRestart()` |
+| 🎨 **Logger** | Built-in colored logging with configurable levels |
+
+---
+
+## 🚀 Quick Start
 
 ```bash
-npm install status-sharding
-pnpm add status-sharding
-yarn add status-sharding
+npm install discord-cluster
 ```
 
-## Usage
+### Manager (spawns clusters)
 
-### Basic Cluster Setup
+```typescript
+import { ClusterManager, ProcessGuard } from 'discord-cluster';
 
-This example demonstrates how to set up a cluster manager with Status Sharding. It works with any client implementation, providing automated shard distribution and cluster management.
-
-```javascript
-// import { ClusterManager } from 'status-sharding';
-const { ClusterManager } = require("status-sharding");
-
-const manager = new ClusterManager("./path-to-client.js", {
-  mode: "worker", // or process
-  token: "very-secret-token", // optional, for auto-calculation leave empty
-  totalShards: 1, // leave empty for auto calculation
-  totalClusters: 1, // shards are distributed over clusters
-  shardsPerClusters: 1,
+const manager = new ClusterManager('./bot.js', {
+  mode: 'worker',          // 'worker' or 'process'
+  token: process.env.DISCORD_TOKEN,
+  totalShards: -1,          // -1 = auto
+  totalClusters: -1,        // -1 = auto
+  logging: { enabled: true },
 });
 
-manager.on("clusterReady", (cluster) => {
-  console.log(`Cluster ${cluster.id} is ready.`);
-});
+const guard = new ProcessGuard(manager);
 
-manager.on("ready", () => console.log("All clusters are ready."));
+guard.addCleanupTask('killClusters', async () => {
+  for (const cluster of manager.clusters.values()) {
+    await cluster.kill({ reason: 'Manager shutting down' });
+  }
+}, 10000);
 
 manager.spawn();
 ```
 
-> **Note:** Replace `'./path-to-client.js'` with your actual client file path, and `'very-secret-token'` with your Discord bot token.
+### Bot file (runs in each cluster)
 
----
+```typescript
+import { ClusterClient, ClusterProcessGuard } from 'discord-cluster';
+import { Client, GatewayIntentBits } from 'discord.js';
 
-### Usage with discord.js
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const cluster = new ClusterClient(client); // auto-configures shards + ready
+const guard = new ClusterProcessGuard();   // self-terminates if manager dies
 
-Here’s a minimal example of using Status Sharding with **discord.js**. It leverages the `ShardingClient` class to handle shards automatically.
-
-```javascript
-// import { ShardingClient } from 'status-sharding';
-// import { GatewayIntentBits, Events } from 'discord.js';
-const { ShardingClient } = require("status-sharding");
-const { GatewayIntentBits, Events } = require("discord.js");
-
-const client = new ShardingClient({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
-});
-
-client.once(Events.ClientReady, () => {
-  console.log("Ready!");
-});
-
-client.login("very-secret-token");
+client.login(process.env.DISCORD_TOKEN);
 ```
 
-This setup ensures your bot scales efficiently without requiring manual shard management.
+That's it. `ClusterClient` automatically patches shard options and triggers ready.
 
 ---
 
-### Usage with @discordjs/core
+## 🔍 Transparent API
 
-For developers using **@discordjs/core**, Status Sharding provides `ShardingCoreClient` to integrate seamlessly with the core library and REST API.
+Access data from any cluster like you would with discord.js normally. Cache first, IPC to correct cluster, REST fallback.
 
-```javascript
-// import { ShardingCoreClient } from 'status-sharding/core';
-// import { GatewayDispatchEvents, GatewayIntentBits } from '@discordjs/core';
-const { ShardingCoreClient } = require("status-sharding/core");
-const { GatewayDispatchEvents, GatewayIntentBits } = require("@discordjs/core");
+```typescript
+// Guilds
+const guild = await cluster.guilds.fetch('guildId');
+const guildCount = await cluster.guilds.count();
 
-const client = new ShardingCoreClient({
-  token: "very-secret-token",
-  gateway: {
-    intents: GatewayIntentBits.Guilds | GatewayIntentBits.GuildMembers,
-  },
-  rest: {
-    version: "10",
-  },
-});
+// Channels
+const channel = await cluster.channels.fetch('channelId');
+await cluster.channels.send('channelId', { content: 'Hello' });
 
-client.once(GatewayDispatchEvents.Ready, () => {
-  console.log("Ready!");
-});
+// Members
+const member = await cluster.members.fetch('guildId', 'userId');
+await cluster.members.addRole('guildId', 'userId', 'roleId');
+await cluster.members.removeRole('guildId', 'userId', 'roleId');
+await cluster.members.ban('guildId', 'userId', { reason: 'bad' });
 
-client.gateway.connect();
+// Users
+const user = await cluster.users.fetch('userId');
+await cluster.users.send('userId', { content: 'DM' });
 ```
 
-This example demonstrates full integration with `@discordjs/core`, including gateway connection and event handling, while still benefiting from automated shard and cluster management.
+---
+
+## 📡 Type-Safe IPC
+
+Named handlers replace `broadcastEval`. Normal code, full types, no eval.
+
+```typescript
+// Register handler (runs on every cluster)
+cluster.ipc.handle('getGuildInfo', async (data) => {
+  const guild = client.guilds.cache.get(data.guildId);
+  if (!guild) return null;
+  return { id: guild.id, name: guild.name, memberCount: guild.memberCount };
+});
+
+// Request from any cluster
+const info = await cluster.ipc.request('getGuildInfo', { guildId: '123' });
+
+// Request from specific cluster
+const info = await cluster.ipc.requestTo(2, 'getGuildInfo', { guildId: '123' });
+
+// Request from all clusters
+const results = await cluster.ipc.requestAll('getGuildCount');
+results.values()    // [1200, 1350, 1280]
+results.errors()    // [{ clusterId: 2, error: '...' }]
+results.sum()       // 3830
+results.allOk()     // true
+```
 
 ---
 
-For more information, please refer to the [documentation](https://help.crni.xyz/status-sharding/introduction).
+## 💾 Shared Store
+
+Cross-cluster key-value store. Manager holds the data, clusters read/write via IPC. Sub-millisecond latency.
+
+```typescript
+await cluster.store.set('cooldown:userId', Date.now(), { ttl: 30000 });
+const val = await cluster.store.get('cooldown:userId');
+const exists = await cluster.store.has('cooldown:userId');
+await cluster.store.delete('cooldown:userId');
+```
 
 ---
 
-## Credits
+## 📢 Cross-Cluster Events
 
-- This clone was created by [Digital](https://crni.xyz/). The original can be found [here](https://github.com/meister03/discord-hybrid-sharding).
-- Special thanks to maintainers for their work on the initial package, which served as the foundation for this clone. Their contributions are greatly appreciated.
-- Please note that this clone is an independent project and may have diverged from the original discord-hybrid-sharding package in certain aspects.
+```typescript
+// Broadcast to all clusters
+cluster.events.broadcast('settingsUpdated', { guildId: '123' });
 
-## Dependencies
+// Send to specific cluster
+cluster.events.emitTo(3, 'reloadConfig', {});
 
-- [discord.js](https://www.npmjs.com/package/discord.js) (v14.14.1 or higher)
-- [@discordjs/core](https://www.npmjs.com/package/@discordjs/core) (v2.2.1, optional)
-- [@discordjs/rest](https://www.npmjs.com/package/@discordjs/rest) (v2.6.0, optional)
-- [@discordjs/ws](https://www.npmjs.com/package/@discordjs/ws) (v2.0.3, optional)
+// Listen
+cluster.events.on('settingsUpdated', (data) => {
+  settingsCache.delete(data.guildId);
+});
+```
 
-## License
+---
 
-This project is licensed under the GNU General Public License v3.0. See the [LICENSE](./LICENSE) file for details.
+## 📊 Stats & Utilities
+
+```typescript
+// Aggregate stats across all clusters
+const stats = await cluster.stats();
+// { totalGuilds, totalUsers, totalClusters, totalShards, clusters: [...] }
+
+// Pure math routing (no IPC)
+cluster.findGuild('guildId')  // → clusterId
+cluster.findShard('guildId')  // → shardId
+
+// Cluster info
+cluster.id          // current cluster id
+cluster.shards      // [0, 1, 2, 3]
+cluster.isPrimary   // cluster.id === 0
+cluster.totalShards
+cluster.totalClusters
+```
+
+---
+
+## 🛡️ Process Guard
+
+### Manager side
+
+Graceful shutdown with cleanup tasks, signal handling, stale process cleanup.
+
+```typescript
+const guard = new ProcessGuard(manager);
+
+guard.addCleanupTask('saveState', async () => {
+  await db.flush();
+}, 5000); // 5s timeout
+
+guard.addCleanupTask('killClusters', async () => {
+  for (const cluster of manager.clusters.values()) {
+    await cluster.kill({ reason: 'Shutting down' });
+  }
+}, 10000);
+```
+
+### Cluster side
+
+Monitors parent PID. If the manager dies, the cluster self-terminates.
+
+```typescript
+const guard = new ClusterProcessGuard();
+```
+
+---
+
+## 🎨 Logging
+
+Built-in colored console output. Disabled by default.
+
+```typescript
+const manager = new ClusterManager('./bot.js', {
+  logging: {
+    enabled: true,       // default: false
+    colors: true,        // default: true
+    timestamps: true,    // default: true
+    level: 'info',       // 'debug' | 'info' | 'warn' | 'error'
+  },
+});
+
+// Also available directly
+manager.logger.info('[MyApp] Custom message');
+manager.logger.warn('[MyApp] Warning');
+manager.logger.error('[MyApp] Error');
+```
+
+---
+
+## 🆚 Why Not broadcastEval?
+
+| | discord-cluster | broadcastEval |
+|--|:-:|:-:|
+| TypeScript types | ✅ Full | ❌ Lost |
+| Targeted requests | ✅ Math routing | ❌ Broadcast to all |
+| Return types | ✅ Typed | ❌ `unknown` |
+| Error handling | ✅ Per-cluster | ❌ All or nothing |
+| Shared state | ✅ Built-in store | ❌ DIY |
+| Events | ✅ Pub/sub | ❌ None |
+| Code | Normal functions | Serialized strings |
+
+---
+
+## ⚙️ Configuration
+
+<details>
+<summary><b>All ClusterManager options</b></summary>
+
+```typescript
+const manager = new ClusterManager('./bot.js', {
+  // Mode
+  mode: 'worker',              // 'worker' | 'process'
+  token: process.env.DISCORD_TOKEN,
+
+  // Sharding
+  totalShards: -1,             // -1 = auto from Discord API
+  totalClusters: -1,           // -1 = auto (based on CPU cores)
+  shardsPerClusters: -1,       // -1 = auto (totalShards / totalClusters)
+
+  // Spawning
+  spawnOptions: {
+    timeout: -1,               // Spawn timeout (-1 = none)
+    delay: 7000,               // Delay between cluster spawns
+  },
+
+  // Heartbeat
+  heartbeat: {
+    enabled: true,
+    interval: 2000,            // Check interval
+    timeout: 8000,             // Max time without heartbeat
+    maxMissedHeartbeats: 2,
+    maxRestarts: -1,           // -1 = unlimited
+  },
+
+  // Respawn
+  respawn: true,               // Auto-respawn crashed clusters
+
+  // Logging
+  logging: {
+    enabled: false,
+    colors: true,
+    timestamps: true,
+    level: 'info',
+  },
+
+  // Queue
+  queueOptions: {
+    mode: 'auto',              // 'auto' | 'manual'
+  },
+
+  // Process args (process mode only)
+  shardArgs: [],
+  execArgv: [],
+});
+```
+
+</details>
+
+---
+
+## 📋 Requirements
+
+- **Node.js** 18.4.0+
+- **discord.js** 14.14.1+
+
+---
+
+## 🔗 Links
+
+- [GitHub](https://github.com/LucasCzechia/discord-cluster)
+- [npm](https://www.npmjs.com/package/discord-cluster)
+- [Issues](https://github.com/LucasCzechia/discord-cluster/issues)
+
+---
+
+## 📄 License
+
+MIT © [LucasCzechia](https://github.com/LucasCzechia)

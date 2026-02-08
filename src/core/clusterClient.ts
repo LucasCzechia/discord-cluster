@@ -1,39 +1,43 @@
-import { ClusterClientEvents, EvalOptions, MessageTypes, Serialized, Awaitable, ValidIfSerializable, SerializableInput, ClusterClientData, PackageType } from '../types';
+import { ClusterClientEvents, EvalOptions, MessageTypes, Serialized, Awaitable, ValidIfSerializable, SerializableInput, ClusterClientData, PackageType, IPCMessage, ClusterStats, ClusterStatEntry } from '../types';
 import { BaseMessage, BaseMessageInput, DataType, ProcessMessage } from '../other/message';
-import { BrokerMessage, IPCBrokerClient } from '../handlers/broker';
 import { detectLibraryFromClient, getInfo } from '../other/utils';
 import { ClusterClientHandler } from '../handlers/message';
-import type { RefShardingCoreClient } from './coreClient';
 import { ShardingUtils } from '../other/shardingUtils';
 import { RefClusterManager } from './clusterManager';
 import { PromiseHandler } from '../handlers/promise';
 import { WorkerClient } from '../classes/worker';
 import { ChildClient } from '../classes/child';
+import { IPCHandler } from '../ipc/IPCHandler';
+import { StoreClient } from '../ipc/Store';
+import { EventBusClient } from '../ipc/EventBus';
+import { GuildManager } from '../managers/GuildManager';
+import { ChannelManager } from '../managers/ChannelManager';
+import { MemberManager } from '../managers/MemberManager';
+import { UserManager } from '../managers/UserManager';
 import { Serializable } from 'child_process';
-import { RefShardingClient } from './client';
-import { Guild } from 'discord.js';
+import { Guild, Client } from 'discord.js';
 import EventEmitter from 'events';
 
-export type ClientRefType = RefShardingClient | RefShardingCoreClient;
+export type ClientRefType = Client;
 
 /** Simplified Cluster instance available on the {@link ClusterClient}. */
 export class ClusterClient<
 	InternalClient extends ClientRefType = ClientRefType,
 	InternalManager extends RefClusterManager = RefClusterManager,
 > extends EventEmitter {
-	/** Ready state of the cluster. */
 	public ready: boolean;
-	/** Handler that resolves sent messages and requests. */
 	public promise: PromiseHandler;
-	/** Client that manages broker tunnels. */
-	readonly broker: IPCBrokerClient; // IPC Broker for the ClusterManager.
-	/** Client that manages the cluster process. */
 	readonly process: ChildClient | WorkerClient | null;
-	/** Handler that handles messages from the ClusterManager and the Cluster. */
 	private messageHandler: ClusterClientHandler<InternalClient>;
-
-	/** Package type. */
 	private packageType: PackageType | null;
+
+	public readonly ipc: IPCHandler;
+	public readonly store: StoreClient;
+	public readonly events: EventBusClient;
+	public readonly guilds: GuildManager;
+	public readonly channels: ChannelManager;
+	public readonly members: MemberManager;
+	public readonly users: UserManager;
 
 	/** Creates an instance of ClusterClient. */
 	constructor (public client: InternalClient) {
@@ -42,14 +46,49 @@ export class ClusterClient<
 		this.ready = false;
 		this.packageType = detectLibraryFromClient(client);
 
-		this.broker = new IPCBrokerClient(this);
-		this.process = (this.info.ClusterManagerMode === 'process' ? new ChildClient() : this.info.ClusterManagerMode === 'worker' ? new WorkerClient() : null);
+		const clusterInfo = this.info;
+		if ((client as any).options) {
+			(client as any).options.shards = clusterInfo.ShardList;
+			(client as any).options.shardCount = clusterInfo.TotalShards;
+		}
+
+		this.process = (clusterInfo.ClusterManagerMode === 'process' ? new ChildClient() : clusterInfo.ClusterManagerMode === 'worker' ? new WorkerClient() : null);
 		this.messageHandler = new ClusterClientHandler<InternalClient>(this);
 
-		// Handle messages from the ClusterManager.
 		if (!this.process?.ipc) throw new Error('CLUSTERING_NO_PROCESS | No process to handle messages from.');
 		this.process.ipc.on('message', this._handleMessage.bind(this));
 		this.promise = new PromiseHandler(this);
+
+		const sendFn = async (message: unknown) => {
+			if (!this.process) throw new Error('No process to send IPC message.');
+			await this.process.send(message as BaseMessage<'normal'>);
+		};
+
+		const sendToCluster = async (clusterId: number, message: unknown) => {
+			await sendFn({ _type: MessageTypes.HandlerRequestTo, data: { ...message as object, _targetCluster: clusterId } });
+		};
+
+		this.ipc = new IPCHandler(sendFn, sendToCluster, () => this.info.ClusterCount);
+		this.store = new StoreClient(sendFn);
+		this.events = new EventBusClient(sendFn, this.id);
+		this.guilds = new GuildManager(this as any);
+		this.channels = new ChannelManager(this as any);
+		this.members = new MemberManager(this as any);
+		this.users = new UserManager(this as any);
+
+		this.ipc.handle('__cluster_stats', () => ({
+			id: this.id,
+			guilds: this.client.guilds.cache.size,
+			users: this.client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0),
+			shards: this.shards,
+			uptime: this.client.uptime ?? 0,
+			memory: process.memoryUsage().heapUsed,
+			status: 'healthy' as const,
+		}));
+
+		if (this.packageType === 'discord.js' && typeof (client as any).on === 'function') {
+			(client as any).on('clientReady', () => this.triggerReady());
+		}
 	}
 
 	/** Current cluster id. */
@@ -70,6 +109,60 @@ export class ClusterClient<
 	/** Utility function to get some info about the cluster. */
 	public get info(): ClusterClientData {
 		return getInfo();
+	}
+
+	public get shards(): number[] {
+		return this.info.ShardList;
+	}
+
+	public get isPrimary(): boolean {
+		return this.id === 0;
+	}
+
+	public findShard(guildId: string): number {
+		return ShardingUtils.shardIdForGuildId(guildId, this.totalShards);
+	}
+
+	public findGuild(guildId: string): number {
+		return ShardingUtils.clusterIdForGuildId(guildId, this.totalShards, this.totalClusters);
+	}
+
+	public async stats(): Promise<ClusterStats> {
+		const results = await this.ipc.requestAll<ClusterStatEntry>('__cluster_stats');
+		const clusterEntries = results.values();
+		return {
+			totalGuilds: clusterEntries.reduce((sum, c) => sum + c.guilds, 0),
+			totalUsers: clusterEntries.reduce((sum, c) => sum + c.users, 0),
+			totalClusters: this.totalClusters,
+			totalShards: this.totalShards,
+			clusters: clusterEntries,
+		};
+	}
+
+	public async requestRestart(): Promise<void> {
+		if (!this.process) throw new Error('No process to send restart request.');
+		await this.process.send({
+			_type: MessageTypes.RestartRequest,
+			data: { clusterId: this.id },
+		} as BaseMessage<'normal'>);
+	}
+
+	public async requestRollingRestart(options?: { restartMode?: 'rolling' | 'gracefulSwitch' }): Promise<void> {
+		if (!this.process) throw new Error('No process to send rolling restart request.');
+		await this.process.send({
+			_type: MessageTypes.RollingRestartRequest,
+			data: { restartMode: options?.restartMode || 'rolling' },
+		} as BaseMessage<'normal'>);
+	}
+
+	public async handleIPCMessage(message: IPCMessage, sourceCluster?: number): Promise<void> {
+		if (message._type >= 30 && message._type <= 34) {
+			await this.ipc.handleIncoming(message, sourceCluster);
+		} else if (message._type === MessageTypes.StoreResponse) {
+			this.store.handleResponse(message);
+		} else if (message._type >= 50 && message._type <= 53) {
+			this.events.handleIncoming(message);
+		}
 	}
 
 	/** Sends a message to the Cluster as child. (goes to Cluster on _handleMessage). */
@@ -251,8 +344,8 @@ export class ClusterClient<
 	}
 
 	/** Handles a message from the ClusterManager. */
-	private _handleMessage(message: BaseMessage<'normal'> | BrokerMessage): void {
-		if (!message || '_data' in message) return this.broker.handleMessage(message);
+	private _handleMessage(message: BaseMessage<'normal'>): void {
+		if (!message) return;
 
 		// Debug.
 		this.emit('debug', `[IPC] [Child ${this.id}] Received message from cluster.`);

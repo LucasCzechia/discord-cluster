@@ -1,6 +1,6 @@
 import { BaseMessage, DataType, DataTypes, EvalMessage } from '../other/message';
 import { ClientRefType, ClusterClient } from '../core/clusterClient';
-import { MessageTypes, PackageType, Serializable } from '../types';
+import { MessageTypes, PackageType, Serializable, IPCMessage } from '../types';
 import { ShardingUtils } from '../other/shardingUtils';
 import { Worker } from '../classes/worker';
 import { Cluster } from '../core/cluster';
@@ -31,7 +31,7 @@ export class ClusterHandler {
 				this.cluster.lastHeartbeatReceived = Date.now();
 
 				this.cluster.emit('ready', this.cluster);
-				this.cluster.manager._debug(`[Cluster ${this.cluster.id}] Cluster is ready.`);
+				this.cluster.manager._info(`[Cluster ${this.cluster.id}] Cluster is ready.`);
 
 				const allReady = this.cluster.manager.clusters.every((cluster) => cluster.ready);
 
@@ -39,7 +39,7 @@ export class ClusterHandler {
 					this.cluster.manager.ready = true;
 
 					this.cluster.manager.emit('ready', this.cluster.manager);
-					this.cluster.manager._debug('All clusters are ready.');
+					this.cluster.manager._info('All clusters are ready.');
 
 					for (const cluster of this.cluster.manager.clusters.values()) {
 						cluster._sendInstance({ _type: MessageTypes.ManagerReady } as BaseMessage<'readyOrSpawn'>);
@@ -122,6 +122,78 @@ export class ClusterHandler {
 				this.cluster.manager._debug(`[Cluster ${this.cluster.id}] Received heartbeat.`);
 				break;
 			}
+			case MessageTypes.HandlerRequest: {
+				const ipcMsg = message as unknown as IPCMessage;
+				for (const [id, cl] of this.cluster.manager.clusters) {
+					if (id === this.cluster.id) continue;
+					cl._sendInstance(message);
+				}
+				break;
+			}
+			case MessageTypes.HandlerRequestAll: {
+				for (const [id, cl] of this.cluster.manager.clusters) {
+					if (id === this.cluster.id) continue;
+					cl._sendInstance(message);
+				}
+				break;
+			}
+			case MessageTypes.HandlerRequestTo: {
+				const reqData = message.data as { _targetCluster: number };
+				const targetCluster = this.cluster.manager.clusters.get(reqData._targetCluster);
+				if (targetCluster) {
+					const fwd = { ...message, _type: MessageTypes.HandlerRequest };
+					targetCluster._sendInstance(fwd as BaseMessage<any>);
+				}
+				break;
+			}
+			case MessageTypes.HandlerResponse:
+			case MessageTypes.HandlerError: {
+				for (const [id, cl] of this.cluster.manager.clusters) {
+					if (id === this.cluster.id) continue;
+					cl._sendInstance(message);
+				}
+				break;
+			}
+			case MessageTypes.StoreGet:
+			case MessageTypes.StoreSet:
+			case MessageTypes.StoreDelete:
+			case MessageTypes.StoreHas: {
+				const ipcMsg = message as unknown as IPCMessage;
+				const response = this.cluster.manager.store.handleMessage(ipcMsg);
+				if (response) {
+					this.ipc.send(response as unknown as BaseMessage<any>);
+				}
+				break;
+			}
+			case MessageTypes.EventEmit:
+			case MessageTypes.EventEmitAndWait:
+			case MessageTypes.EventAck: {
+				const ipcMsg = message as unknown as IPCMessage;
+				const sendToCluster = async (clusterId: number, msg: unknown) => {
+					const cl = this.cluster.manager.clusters.get(clusterId);
+					if (cl) await cl._sendInstance(msg as BaseMessage<any>);
+				};
+				const allClusterIds = Array.from(this.cluster.manager.clusters.keys());
+				this.cluster.manager.eventBus.handleMessage(ipcMsg, this.cluster.id, sendToCluster, allClusterIds);
+				break;
+			}
+			case MessageTypes.RestartRequest: {
+				const { clusterId } = message.data as { clusterId: number };
+				const target = this.cluster.manager.clusters.get(clusterId);
+				if (target) {
+					target.respawn().catch((err) => {
+						this.cluster.manager._debug(`[RestartRequest] Failed to restart cluster ${clusterId}: ${err.message}`);
+					});
+				}
+				break;
+			}
+			case MessageTypes.RollingRestartRequest: {
+				const { restartMode } = message.data as { restartMode?: 'rolling' | 'gracefulSwitch' };
+				this.cluster.manager.rollingRestart({ restartMode: restartMode || 'rolling' }).catch((err) => {
+					this.cluster.manager._debug(`[RollingRestartRequest] Failed: ${err.message}`);
+				});
+				break;
+			}
 		}
 	}
 }
@@ -200,6 +272,30 @@ export class ClusterClientHandler<InternalClient extends ClientRefType = ClientR
 			}
 			case MessageTypes.Heartbeat: {
 				this.clusterClient._respond({ _type: MessageTypes.HeartbeatAck } as BaseMessage<'heartbeat'>);
+				break;
+			}
+			case MessageTypes.HandlerRequestAll: {
+				const ipcMsg = message as unknown as IPCMessage;
+				this.clusterClient.handleIPCMessage(ipcMsg, this.clusterClient.id).catch(() => {});
+				break;
+			}
+			case MessageTypes.HandlerRequest:
+			case MessageTypes.HandlerResponse:
+			case MessageTypes.HandlerError: {
+				const ipcMsg = message as unknown as IPCMessage;
+				this.clusterClient.handleIPCMessage(ipcMsg, (ipcMsg.data as any)?.sourceCluster).catch(() => {});
+				break;
+			}
+			case MessageTypes.StoreResponse: {
+				const ipcMsg = message as unknown as IPCMessage;
+				this.clusterClient.handleIPCMessage(ipcMsg).catch(() => {});
+				break;
+			}
+			case MessageTypes.EventForward:
+			case MessageTypes.EventEmitAndWait:
+			case MessageTypes.EventAck: {
+				const ipcMsg = message as unknown as IPCMessage;
+				this.clusterClient.handleIPCMessage(ipcMsg).catch(() => {});
 				break;
 			}
 		}

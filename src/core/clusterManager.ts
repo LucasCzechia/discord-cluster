@@ -2,8 +2,10 @@ import { Awaitable, ClusterHeartbeatOptions, ClusterManagerCreateOptions, Cluste
 import { ReClusterManager } from '../plugins/reCluster';
 import { HeartbeatManager } from '../plugins/heartbeat';
 import { ShardingUtils } from '../other/shardingUtils';
-import { IPCBrokerManager } from '../handlers/broker';
 import { PromiseHandler } from '../handlers/promise';
+import { StoreManager } from '../ipc/Store';
+import { EventBusManager } from '../ipc/EventBus';
+import { Logger } from '../utils/Logger';
 import { Cluster, RefCluster } from './cluster';
 import { ClientRefType } from './clusterClient';
 import { Queue } from '../handlers/queue';
@@ -22,7 +24,6 @@ export class ClusterManager<
 	/** Check if all clusters are ready. */
 	public ready: boolean;
 	/** IPC Broker for the ClusterManager. */
-	readonly broker: IPCBrokerManager;
 	/** Options for the ClusterManager */
 	readonly options: ClusterManagerOptions<ClusteringMode>;
 	/** Promise Handler for the ClusterManager */
@@ -33,8 +34,10 @@ export class ClusterManager<
 	readonly reCluster: ReClusterManager;
 	/** Heartbeat Manager for the ClusterManager */
 	readonly heartbeat: HeartbeatManager | null;
-	/** Queue for the ClusterManager */
+	readonly store: StoreManager;
+	readonly eventBus: EventBusManager;
 	readonly clusterQueue: Queue;
+	readonly logger: Logger;
 
 	/** Creates an instance of ClusterManager. */
 	constructor (public file: string, options: ClusterManagerCreateOptions<ClusteringMode>) {
@@ -77,16 +80,22 @@ export class ClusterManager<
 		this.ready = false;
 		this.clusters = new CustomMap();
 
+		this.logger = new Logger(options.logging);
 		this.promise = new PromiseHandler(this);
-		this.broker = new IPCBrokerManager(this);
 		this.reCluster = new ReClusterManager(this);
 		this.heartbeat = this.options.heartbeat.enabled ? new HeartbeatManager(this) : null;
+		this.store = new StoreManager();
+		this.eventBus = new EventBusManager();
 
 		this.clusterQueue = new Queue(this.options.queueOptions || {
 			mode: 'auto', timeout: this.options.spawnOptions.timeout || -1,
 		});
 
-		this._debug('[ClusterManager] Initialized successfully.');
+		this._info('[ClusterManager] Initialized successfully.');
+	}
+
+	public async rollingRestart(options?: { restartMode?: 'rolling' | 'gracefulSwitch' }): Promise<boolean> {
+		return this.reCluster.start({ restartMode: options?.restartMode || 'rolling' });
 	}
 
 	/** Spawns multiple internal clusters. */
@@ -122,19 +131,19 @@ export class ClusterManager<
 		}
 
 		if (this.options.shardsPerClusters > this.options.totalShards) {
-			console.warn('[ClusterManager] Shards Per Cluster is bigger than Total Shards, setting it to Total Shards.');
+			this.logger.warn('[ClusterManager] Shards Per Cluster is bigger than Total Shards, setting it to Total Shards.');
 			this.options.shardsPerClusters = this.options.totalShards;
 		} else if (this.options.shardsPerClusters > (this.options.totalShards / this.options.totalClusters)) {
-			console.warn('[ClusterManager] Shards Per Cluster is bigger than optimal distribution, adjusting to optimal value.');
+			this.logger.warn('[ClusterManager] Shards Per Cluster is bigger than optimal distribution, adjusting to optimal value.');
 			this.options.shardsPerClusters = Math.ceil(this.options.totalShards / this.options.totalClusters);
 		}
 
 		if (this.options.totalClusters > cpuCores * 2) {
-			console.warn(`[ClusterManager] Warning: Running ${this.options.totalClusters} clusters on ${cpuCores} CPU cores. This may impact performance. Consider reducing clusters or upgrading hardware.`);
+			this.logger.warn(`[ClusterManager] Running ${this.options.totalClusters} clusters on ${cpuCores} CPU cores. This may impact performance.`);
 		}
 
 		if (this.options.mode === 'worker' && this.options.totalClusters > cpuCores * 4) {
-			console.warn(`[ClusterManager] Warning: ${this.options.totalClusters} worker threads may cause thread pool exhaustion. Consider using 'process' mode or reducing clusters.`);
+			this.logger.warn(`[ClusterManager] ${this.options.totalClusters} worker threads may cause thread pool exhaustion. Consider using 'process' mode.`);
 		}
 
 		if (!this.options.shardList?.length) this.options.shardList = new Array(this.options.totalShards).fill(0).map((_, i) => i);
@@ -149,7 +158,7 @@ export class ClusterManager<
 		if (this.options.shardList.some((shard) => shard < 0)) throw new Error('CLIENT_INVALID_OPTION | Shard List has invalid shards.');
 		if (this.options.clusterList.some((cluster) => cluster < 0)) throw new Error('CLIENT_INVALID_OPTION | Cluster List has invalid clusters.');
 
-		this._debug(`[ClusterManager] Spawning ${this.options.totalClusters} clusters with ${this.options.totalShards} shards in total (${this.options.shardsPerClusters} shards per cluster)`);
+		this._info(`[ClusterManager] Spawning ${this.options.totalClusters} clusters with ${this.options.totalShards} shards in total (${this.options.shardsPerClusters} shards per cluster)`);
 
 		const listOfShardsForCluster = ShardingUtils.chunkArray(this.options.shardList || [], this.options.shardsPerClusters || this.options.totalShards);
 		if (listOfShardsForCluster.length !== this.options.totalClusters) this.options.totalClusters = listOfShardsForCluster.length;
@@ -362,7 +371,13 @@ export class ClusterManager<
 	}
 
 	/** Logs out the Debug Messages. */
+	public _info(message: string): void {
+		this.logger.info(message);
+		this.emit('debug', message);
+	}
+
 	public _debug(message: string): void {
+		this.logger.debug(message);
 		this.emit('debug', message);
 	}
 }

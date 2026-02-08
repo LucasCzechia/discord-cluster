@@ -5,7 +5,6 @@ import { Worker as WorkerThread } from 'worker_threads';
 import { ShardingUtils } from '../other/shardingUtils';
 import { RefClusterManager } from './clusterManager';
 import { ClusterHandler } from '../handlers/message';
-import { BrokerMessage } from '../handlers/broker';
 import { isChildProcess } from '../other/utils';
 import { ClientRefType } from './clusterClient';
 import { ChildProcess } from 'child_process';
@@ -128,7 +127,7 @@ export class Cluster<
 
 			return this.thread.process as ChildProcess | WorkerThread;
 		} catch (error) {
-			console.error(`Failed to spawn cluster ${this.id}:`, error);
+			this.manager.logger.error(`[Cluster ${this.id}] Failed to spawn: ${error}`);
 			throw error;
 		}
 	}
@@ -161,7 +160,7 @@ export class Cluster<
 
 	public async kill(options?: ClusterKillOptions): Promise<void> {
 		if (!this.thread) {
-			console.warn(`Cluster ${this.id} has no thread to kill.`);
+			this.manager.logger.warn(`[Cluster ${this.id}] No thread to kill.`);
 			return;
 		}
 
@@ -173,11 +172,11 @@ export class Cluster<
 			this.exited = true;
 
 			this.manager.heartbeat?.removeCluster(this.id);
-			this.manager._debug('[KILL] Cluster ' + this.id + ' killed with reason: ' + (options?.reason || 'Unknown reason.'));
+			this.manager._info('[KILL] Cluster ' + this.id + ' killed with reason: ' + (options?.reason || 'Unknown reason.'));
 
-			if (!killResult) console.warn(`Cluster ${this.id} kill operation completed but process may not have terminated cleanly.`);
+			if (!killResult) this.manager.logger.warn(`[Cluster ${this.id}] Kill completed but process may not have terminated cleanly.`);
 		} catch (error) {
-			console.error(`Error killing cluster ${this.id}:`, error);
+			this.manager.logger.error(`[Cluster ${this.id}] Error killing: ${error}`);
 
 			this.thread = null;
 			this.ready = false;
@@ -267,9 +266,9 @@ export class Cluster<
 	}
 
 	/** Message handler function that handles messages from the cluster's child process/worker/manager. */
-	private _handleMessage(message: BaseMessage<'normal'> | BrokerMessage): void {
-		if (!message || '_data' in message) return this.manager.broker.handleMessage(message);
-		else if (!this.messageHandler) throw new Error('CLUSTERING_NO_MESSAGE_HANDLER | Cluster ' + this.id + ' does not have a message handler.');
+	private _handleMessage(message: BaseMessage<'normal'>): void {
+		if (!message) return;
+		if (!this.messageHandler) throw new Error('CLUSTERING_NO_MESSAGE_HANDLER | Cluster ' + this.id + ' does not have a message handler.');
 
 		if (this.manager.options.advanced?.logMessagesInDebug) {
 			this.manager._debug(`[IPC] [Cluster ${this.id}] Received message from child.`);

@@ -45,6 +45,22 @@ export enum MessageTypes {
 	'ManagerReady' = 24,
 	'Kill' = 25,
 	'ClientRespawnSpecific' = 26,
+	'HandlerRequest' = 30,
+	'HandlerResponse' = 31,
+	'HandlerError' = 32,
+	'HandlerRequestAll' = 33,
+	'HandlerRequestTo' = 34,
+	'StoreGet' = 40,
+	'StoreSet' = 41,
+	'StoreDelete' = 42,
+	'StoreHas' = 43,
+	'StoreResponse' = 44,
+	'EventEmit' = 50,
+	'EventForward' = 51,
+	'EventAck' = 52,
+	'EventEmitAndWait' = 53,
+	'RollingRestartRequest' = 60,
+	'RestartRequest' = 61,
 }
 
 /** Recursive array of strings. */
@@ -103,6 +119,15 @@ export interface ClusterManagerCreateOptions<T extends ClusteringMode> {
 	clusterOptions?: T extends 'worker' ? WorkerThreadOptions : ChildProcessOptions;
 	/** Advanced. */
 	advanced?: Partial<ClusterManagerAdvancedOptions>;
+	/** Logging options. */
+	logging?: LoggingOptions;
+}
+
+export interface LoggingOptions {
+	enabled?: boolean;
+	colors?: boolean;
+	timestamps?: boolean;
+	level?: 'debug' | 'info' | 'warn' | 'error';
 }
 
 /** Options for the cluster manager. */
@@ -276,4 +301,91 @@ export interface ClusterClientEvents {
 	ready: [clusterClient: ClusterClient];
 	/** Emits when debug message is sent. */
 	debug: [message: string];
+}
+
+export interface IPCMessage {
+	_type: MessageTypes;
+	_nonce: string;
+	data: unknown;
+}
+
+export interface GuildInfo {
+	id: string;
+	name: string;
+	memberCount: number;
+	ownerId: string;
+	createdTimestamp: number;
+	iconURL: string | null;
+	shardId: number;
+}
+
+export interface ChannelInfo {
+	id: string;
+	name: string;
+	type: number;
+	guildId: string | null;
+}
+
+export interface MemberInfo {
+	id: string;
+	displayName: string;
+	username: string;
+	avatar: string;
+	roles: string[];
+	joinedAt: number | null;
+	premiumSince: number | null;
+}
+
+export interface SendResult {
+	success: boolean;
+	messageId?: string;
+	error?: string;
+}
+
+export interface RolesResult {
+	success: boolean;
+	added?: number;
+	removed?: number;
+	error?: string;
+}
+
+export interface FilePath {
+	path: string;
+	name: string;
+}
+
+export interface ManageRolesOptions {
+	add?: string[];
+	remove?: string[];
+	reason?: string;
+}
+
+export interface ClusterResult<T = unknown> {
+	clusterId: number;
+	status: 'ok' | 'error';
+	data?: T;
+	error?: string;
+}
+
+export interface ClusterStats {
+	totalGuilds: number;
+	totalUsers: number;
+	totalClusters: number;
+	totalShards: number;
+	clusters: ClusterStatEntry[];
+}
+
+export interface ClusterStatEntry {
+	id: number;
+	guilds: number;
+	users: number;
+	shards: number[];
+	uptime: number;
+	memory: number;
+	status: 'healthy' | 'starting' | 'exited';
+}
+
+export interface RollingRestartOptions {
+	concurrency?: number;
+	delay?: number;
 }
