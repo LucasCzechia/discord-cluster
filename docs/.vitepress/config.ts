@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'discord-cluster',
   description: 'Transparent cross-cluster operations for discord.js',
-  base: '/discord-cluster/',
+  base: '/',
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
