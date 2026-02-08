@@ -4,10 +4,20 @@ export default defineConfig({
   title: 'discord-cluster',
   description: 'Transparent cross-cluster operations for discord.js',
   base: '/',
+  cleanUrls: true,
+  head: [
+    ['link', { rel: 'icon', href: '/logo.svg' }],
+    ['meta', { property: 'og:title', content: 'discord-cluster' }],
+    ['meta', { property: 'og:description', content: 'Transparent cross-cluster operations for discord.js' }],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
+  ],
+  lastUpdated: true,
   themeConfig: {
+    logo: '/logo.svg',
+    outline: [2, 3],
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'API', link: '/api/cluster-client' },
+      { text: 'API', link: '/api/cluster-manager' },
       { text: 'npm', link: 'https://www.npmjs.com/package/discord-cluster' },
     ],
     sidebar: {
@@ -56,8 +66,13 @@ export default defineConfig({
         },
       ],
     },
+    editLink: {
+      pattern: 'https://github.com/LucasCzechia/discord-cluster/edit/main/docs/:path',
+      text: 'Edit this page on GitHub',
+    },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/LucasCzechia/discord-cluster' },
+      { icon: 'npm', link: 'https://www.npmjs.com/package/discord-cluster' },
     ],
     footer: {
       message: 'Released under the MIT License.',
@@ -66,5 +81,6 @@ export default defineConfig({
     search: {
       provider: 'local',
     },
+    externalLinkIcon: true,
   },
 })

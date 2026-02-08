@@ -2,6 +2,8 @@
 
 discord-cluster supports zero-downtime restarts through two modes. Both are powered by the `ReClusterManager` and can be triggered from the manager process or from within a cluster.
 
+> See the API reference for [ClusterManager](/api/cluster-manager) and [ClusterClient](/api/cluster-client).
+
 ## Restart Modes
 
 ### Rolling Mode
@@ -37,6 +39,16 @@ await manager.rollingRestart({ restartMode: 'gracefulSwitch' });
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `restartMode` | `'rolling' \| 'gracefulSwitch'` | `'rolling'` | Which restart strategy to use |
+
+You can also pass `totalShards`, `totalClusters`, and `shardsPerClusters` to change shard topology during restart:
+
+```ts
+await manager.rollingRestart({
+  restartMode: 'rolling',
+  totalShards: 16,
+  totalClusters: 4,
+});
+```
 
 **Returns:** `Promise<boolean>` -- resolves to `true` when the restart is complete.
 

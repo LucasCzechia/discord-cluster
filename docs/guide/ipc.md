@@ -4,6 +4,8 @@ The `IPCHandler` provides a request/response pattern for communication between c
 
 Access it via `cluster.ipc`:
 
+> For the full ClusterClient API, see the [API reference](/api/cluster-client).
+
 ```ts
 const cluster = new ClusterClient(client);
 cluster.ipc; // IPCHandler
@@ -73,6 +75,10 @@ const data = await cluster.ipc.request<GuildData>(
 | `handler` | `string` | Name of the registered handler |
 | `data` | `unknown` | Data to pass to the handler |
 | `timeout` | `number` | Timeout in ms (optional) |
+
+::: warning
+If no timeout is provided, the promise will never time out. Always set a timeout in production to prevent memory leaks from unresolved promises.
+:::
 
 ### `ipc.requestTo(clusterId, handler, data?, timeout?)`
 

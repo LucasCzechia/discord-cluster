@@ -2,6 +2,8 @@
 
 All exported TypeScript interfaces and type aliases from the discord-cluster type system. These types are used throughout the ClusterManager and ClusterClient APIs.
 
+> These types are used across the [ClusterManager](/api/cluster-manager), [ClusterClient](/api/cluster-client), and [Manager](/api/guild-manager) APIs.
+
 ## Enums
 
 ### MessageTypes
@@ -347,7 +349,7 @@ interface GuildInfo {
 ```ts
 interface ChannelInfo {
     id: string;
-    name: string;
+    name: string | null;
     type: number;
     guildId: string | null;
 }

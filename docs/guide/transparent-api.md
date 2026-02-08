@@ -8,6 +8,8 @@ discord-cluster provides four transparent managers that let you access guilds, c
 
 All managers are available as properties on the `ClusterClient` instance.
 
+> See the API reference for [GuildManager](/api/guild-manager), [ChannelManager](/api/channel-manager), [MemberManager](/api/member-manager), and [UserManager](/api/user-manager).
+
 ```ts
 const cluster = new ClusterClient(client);
 
@@ -79,7 +81,7 @@ if (channel) {
 ```ts
 interface ChannelInfo {
   id: string;
-  name: string;
+  name: string | null;
   type: number;
   guildId: string | null;
 }

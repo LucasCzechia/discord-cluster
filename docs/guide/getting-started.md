@@ -8,6 +8,8 @@ npm install discord-cluster discord.js
 
 Requires Node.js 18.4.0 or newer and discord.js 14.14.1 or newer.
 
+> For the full API reference, see [ClusterManager](/api/cluster-manager) and [ClusterClient](/api/cluster-client).
+
 ## Project Structure
 
 A discord-cluster project has two files:
@@ -25,7 +27,7 @@ import { ClusterManager, ProcessGuard } from 'discord-cluster';
 const manager = new ClusterManager('./dist/bot.js', {
   token: process.env.DISCORD_TOKEN,
   mode: 'worker',
-  totalShards: 'auto',
+  totalShards: -1,
   totalClusters: -1,
   shardsPerClusters: -1,
   respawn: true,
@@ -79,8 +81,14 @@ manager.spawn();
 | `shardsPerClusters` | `number` | `-1` (auto) | Shards per cluster |
 | `respawn` | `boolean` | `true` | Auto-respawn on crash |
 | `spawnOptions` | `object` | -- | Delay and timeout for spawning |
-| `heartbeat` | `object` | -- | Heartbeat monitoring config |
+| `heartbeat` | `object` | -- | Heartbeat monitoring config (enabled by default even if not explicitly set) |
 | `logging` | `object` | -- | Logger config |
+| `shardArgs` | `string[]` | `[]` | Arguments passed to shard scripts |
+| `execArgv` | `string[]` | `[]` | Arguments passed to the node process |
+| `queueOptions` | `object` | -- | Queue behavior configuration |
+| `clusterData` | `object` | -- | Data passed to clusters |
+| `clusterOptions` | `object` | -- | Fork/thread options |
+| `advanced` | `object` | -- | Advanced options |
 
 ## Bot File Setup
 
@@ -174,3 +182,6 @@ console.log(`Total users: ${stats.totalUsers}`);
 - [IPC Handlers](/guide/ipc) -- define custom request/response handlers
 - [Shared Store](/guide/store) -- cross-cluster key-value storage
 - [Cross-Cluster Events](/guide/events) -- broadcast events between clusters
+- [Process Guard](/guide/process-guard) -- graceful shutdown and orphan cleanup
+- [Rolling Restart](/guide/rolling-restart) -- zero-downtime restarts
+- [Logging](/guide/logging) -- structured logging for manager and cluster events

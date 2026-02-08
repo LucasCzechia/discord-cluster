@@ -2,6 +2,8 @@
 
 discord-cluster includes a built-in `Logger` that provides structured, color-coded output for manager and cluster events. It is configured through the `logging` option on `ClusterManager`.
 
+> For the full ClusterManager API, see the [API reference](/api/cluster-manager).
+
 ## Configuration
 
 ```ts
@@ -95,7 +97,7 @@ Output:
 
 ## Direct Logger Usage
 
-The logger instance is available on the manager as `manager.logger`. You can call its methods directly.
+The logger instance is available on the manager as `manager.logger`. You can call its methods directly. Note that the `Logger` instance is only available on the manager side. Inside clusters, use the `debug` event on `ClusterClient` or your own logging solution.
 
 ```ts
 manager.logger.info('[MyPlugin] Custom info message');

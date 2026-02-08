@@ -2,6 +2,8 @@
 
 The `UserManager` provides cross-cluster user operations including sending direct messages and fetching user information. It is accessible from any cluster via `cluster.users`.
 
+> For usage examples, see the [Transparent API guide](/guide/transparent-api#users).
+
 ## Import
 
 The UserManager is automatically instantiated on the ClusterClient. You do not need to import it directly.
@@ -70,7 +72,7 @@ if (user) {
 }
 ```
 
-## Return Types
+## Interfaces
 
 ### User Object
 

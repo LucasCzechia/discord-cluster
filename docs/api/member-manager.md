@@ -2,6 +2,8 @@
 
 The `MemberManager` provides cross-cluster guild member operations including fetching member info, managing roles, banning, and kicking. It is accessible from any cluster via `cluster.members`.
 
+> For usage examples, see the [Transparent API guide](/guide/transparent-api#members).
+
 ## Import
 
 The MemberManager is automatically instantiated on the ClusterClient. You do not need to import it directly.

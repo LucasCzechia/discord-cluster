@@ -4,6 +4,8 @@ The shared store provides a cross-cluster key-value store that lives on the mana
 
 Access it via `cluster.store`:
 
+> For the full ClusterClient API, see the [API reference](/api/cluster-client).
+
 ```ts
 const cluster = new ClusterClient(client);
 cluster.store; // StoreClient
@@ -114,6 +116,10 @@ async function isRateLimited(guildId: string, action: string, max: number, windo
 }
 ```
 
+::: warning
+The store does not support atomic operations. The get-then-set pattern shown above has a race condition — another cluster could modify the value between your `get` and `set` calls. For strict accuracy, consider using a database or Redis instead.
+:::
+
 ### Shared Configuration
 
 ```ts
@@ -134,6 +140,10 @@ async function claimTask(taskId: string): Promise<boolean> {
   return true;
 }
 ```
+
+::: warning
+The store does not support atomic operations. The get-then-set pattern shown above has a race condition — another cluster could modify the value between your `get` and `set` calls. For strict accuracy, consider using a database or Redis instead.
+:::
 
 ## Architecture Notes
 

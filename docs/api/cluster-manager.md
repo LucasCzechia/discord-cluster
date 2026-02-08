@@ -2,6 +2,8 @@
 
 The `ClusterManager` is the main entry point for managing clusters. It runs on the primary process and is responsible for spawning, monitoring, and communicating with all cluster processes or worker threads.
 
+> For a practical guide, see [Getting Started](/guide/getting-started) and [Rolling Restart](/guide/rolling-restart).
+
 ## Import
 
 ```ts

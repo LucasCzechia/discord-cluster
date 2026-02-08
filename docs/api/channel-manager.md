@@ -2,6 +2,8 @@
 
 The `ChannelManager` provides cross-cluster channel operations including fetching channel info, sending messages, editing messages, and deleting messages. It is accessible from any cluster via `cluster.channels`.
 
+> For usage examples, see the [Transparent API guide](/guide/transparent-api#channels).
+
 ## Import
 
 The ChannelManager is automatically instantiated on the ClusterClient. You do not need to import it directly.
@@ -139,7 +141,7 @@ if (!result.success) {
 ```ts
 interface ChannelInfo {
     id: string;
-    name: string;
+    name: string | null;
     type: number;
     guildId: string | null;
 }
@@ -148,7 +150,7 @@ interface ChannelInfo {
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | `string` | The channel's snowflake ID. |
-| `name` | `string` | The channel's name. |
+| `name` | `string \| null` | The channel's name. |
 | `type` | `number` | The Discord channel type (0 = text, 2 = voice, etc.). |
 | `guildId` | `string \| null` | The parent guild's ID, or `null` for DM channels. |
 

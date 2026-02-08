@@ -2,6 +2,8 @@
 
 The `GuildManager` provides cross-cluster guild lookup capabilities. It is accessible from any cluster via `cluster.guilds` and can fetch guild information regardless of which cluster the guild is cached on.
 
+> For usage examples, see the [Transparent API guide](/guide/transparent-api#guilds).
+
 ## Import
 
 The GuildManager is automatically instantiated on the ClusterClient. You do not need to import it directly.

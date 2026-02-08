@@ -5,11 +5,13 @@ discord-cluster provides two complementary classes for process lifecycle managem
 - **`ProcessGuard`** -- runs on the manager process, handles graceful shutdown and orphan cleanup
 - **`ClusterProcessGuard`** -- runs inside each cluster, detects if the manager dies
 
+> For the full ClusterManager API, see the [API reference](/api/cluster-manager).
+
 ## ProcessGuard (Manager Side)
 
 `ProcessGuard` attaches to a `ClusterManager` and provides:
 
-- Signal handling (SIGTERM, SIGINT, uncaughtException, unhandledRejection)
+- Signal handling (SIGTERM, SIGINT, uncaughtException). Unhandled rejections are logged but do not trigger shutdown.
 - Ordered cleanup task execution before exit
 - PID file tracking and orphan process cleanup on restart
 - Force-exit timeout as a safety net

@@ -2,6 +2,8 @@
 
 The `ClusterClient` runs inside each cluster process or worker thread. It provides access to the Discord.js Client, IPC communication with the manager and other clusters, cross-cluster data managers, and eval capabilities.
 
+> For practical guides, see [Transparent API](/guide/transparent-api), [IPC Handlers](/guide/ipc), [Shared Store](/guide/store), and [Cross-Cluster Events](/guide/events).
+
 ## Import
 
 ```ts
@@ -338,8 +340,8 @@ cluster.on('eventName', (...args) => { });
 | `debug` | `string` | Emitted for internal debug messages. |
 
 ```ts
-cluster.on('ready', (client) => {
-    console.log(`Cluster ${client.id} is ready with shards: ${client.shards}`);
+cluster.on('ready', (clusterClient) => {
+    console.log(`Cluster ${clusterClient.id} is ready with shards: ${clusterClient.shards}`);
 });
 
 cluster.on('message', (message) => {

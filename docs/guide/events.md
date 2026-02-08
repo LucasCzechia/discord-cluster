@@ -4,6 +4,8 @@ The `EventBusClient` lets clusters broadcast events to each other without needin
 
 Access it via `cluster.events`:
 
+> For the full ClusterClient API, see the [API reference](/api/cluster-client).
+
 ```ts
 const cluster = new ClusterClient(client);
 cluster.events; // EventBusClient
@@ -66,6 +68,8 @@ console.log(`${acked} clusters acknowledged`);
 | `expectedClusters` | `number` | `0` | How many acks to expect |
 
 If `expectedClusters` is 0, the method returns immediately with `0`. Otherwise it waits until all expected acks arrive or the timeout elapses, returning however many acks were received.
+
+Acknowledgements are sent automatically when a cluster receives the event -- listeners do not need to explicitly acknowledge.
 
 ## Listening for Events
 
