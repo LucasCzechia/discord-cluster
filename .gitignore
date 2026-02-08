@@ -47,3 +47,8 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# docs
+docs/node_modules
+docs/.vitepress/dist
+docs/.vitepress/cache
