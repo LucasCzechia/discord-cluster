@@ -1,5 +1,5 @@
 import { MessageTypes, IPCMessage, StoredPromise } from '../types';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 import { ResultCollection } from '../utils/ResultCollection';
 
 type HandlerFn<TData = unknown, TResult = unknown> = (data: TData) => TResult | Promise<TResult>;
@@ -31,7 +31,7 @@ export class IPCHandler {
 		await this.send({
 			_type: MessageTypes.HandlerRequest,
 			_nonce: nonce,
-			data: { handler, data },
+			data: { handler, data, _broadcast: false },
 		});
 
 		return this.createPromise<TResult>(nonce, timeout);

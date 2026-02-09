@@ -42,7 +42,8 @@ export class UserManager {
 					: `https://cdn.discordapp.com/embed/avatars/${(BigInt(data.id) >> 22n) % 6n}.png`,
 				bot: data.bot ?? false,
 			};
-		} catch {
+		} catch (err) {
+			this.cluster.emit('debug', `[UserManager] REST fetch failed for ${userId}: ${(err as Error).message}`);
 			return null;
 		}
 	}

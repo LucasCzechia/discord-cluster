@@ -1,4 +1,3 @@
-import { ChildProcessEventMap, ListenerManager } from './listen';
 import { ChildProcess, fork, ForkOptions } from 'child_process';
 import { SerializableInput, Serializable } from '../types';
 
@@ -14,9 +13,6 @@ export class Child {
 	public process: ChildProcess | null = null;
 	/** The options for the child process. */
 	public processOptions: ForkOptions & { args?: string[] } = {};
-
-	/** Type-safe listener manager */
-	private _listeners = new ListenerManager<ChildProcessEventMap>();
 
 	/** Creates an instance of Child. */
 	constructor (private file: string, options: ChildProcessOptions) {
@@ -110,7 +106,6 @@ export class Child {
 	/** Clean up process and listeners */
 	private _cleanup(): void {
 		if (this.process) this.process.removeAllListeners();
-		this._listeners.clear();
 		this.process = null;
 	}
 

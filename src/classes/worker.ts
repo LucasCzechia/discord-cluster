@@ -1,5 +1,4 @@
 import { Worker as WorkerThread, WorkerOptions, parentPort, MessagePort } from 'worker_threads';
-import { ListenerManager, WorkerThreadEventMap } from './listen';
 import { Serializable, SerializableInput } from '../types';
 
 export interface WorkerThreadOptions extends WorkerOptions {
@@ -12,9 +11,6 @@ export class Worker {
 	public process: WorkerThread | null = null;
 	/** The options for the worker process. */
 	public workerOptions: WorkerOptions;
-
-	/** Type-safe listener manager */
-	private _listeners = new ListenerManager<WorkerThreadEventMap>();
 
 	/** Creates an instance of Worker. */
 	constructor (private file: string, options: WorkerThreadOptions) {
@@ -95,7 +91,6 @@ export class Worker {
 	/** Clean up worker and listeners */
 	private _cleanup(): void {
 		if (this.process) this.process.removeAllListeners();
-		this._listeners.clear();
 		this.process = null;
 	}
 

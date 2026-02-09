@@ -1,5 +1,5 @@
 import { MessageTypes, Serializable, StoredPromise } from '../types';
-import { BaseMessage, DataType } from '../other/message';
+import { BaseMessage, DataType } from '../core/message';
 import { ClusterManager } from '../core/clusterManager';
 import { ClusterClient } from '../core/clusterClient';
 
@@ -29,7 +29,7 @@ export class PromiseHandler {
 			error.name = data.name;
 			promise.reject(error);
 
-			console.error('An error occurred while evaluating the script:', data);
+			this.instance._debug(`[PromiseHandler] Eval error: ${data.message}`);
 		}
 	}
 

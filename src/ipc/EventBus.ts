@@ -1,5 +1,5 @@
 import { MessageTypes, IPCMessage } from '../types';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 import EventEmitter from 'events';
 
 type SendFn = (message: unknown) => Promise<void>;

@@ -148,7 +148,9 @@ export class ProcessGuard extends EventEmitter {
 				timestamp: Date.now(),
 			};
 			fs.writeFileSync(this.pidFile, JSON.stringify(data));
-		} catch {}
+		} catch (err) {
+			this.manager._debug(`[ProcessGuard] Failed to write PID file: ${(err as Error).message}`);
+		}
 	}
 
 	private cleanStaleProcesses(): void {
@@ -165,11 +167,15 @@ export class ProcessGuard extends EventEmitter {
 				try {
 					process.kill(pid, 'SIGTERM');
 					this.manager._debug(`[ProcessGuard] Killed stale process ${pid}.`);
-				} catch {}
+				} catch (err) {
+					this.manager._debug(`[ProcessGuard] Failed to kill stale process ${pid}: ${(err as Error).message}`);
+				}
 			}
 
 			fs.unlinkSync(this.pidFile);
-		} catch {}
+		} catch (err) {
+			this.manager._debug(`[ProcessGuard] Failed to clean stale processes: ${(err as Error).message}`);
+		}
 	}
 
 	private isProcessAlive(pid: number): boolean {
@@ -188,14 +194,18 @@ export class ProcessGuard extends EventEmitter {
 					const proc = cluster.thread.process;
 					if ('kill' in proc) (proc as ChildProcess).kill('SIGTERM');
 					else if ('terminate' in proc) (proc as Worker).terminate();
-				} catch {}
+				} catch (err) {
+					this.manager._debug(`[ProcessGuard] Failed to kill child: ${(err as Error).message}`);
+				}
 			}
 		}
 	}
 
 	private cleanup(): void {
 		if (this.orphanCheckInterval) clearInterval(this.orphanCheckInterval);
-		try { fs.unlinkSync(this.pidFile); } catch {}
+		try { fs.unlinkSync(this.pidFile); } catch (err) {
+			this.manager._debug(`[ProcessGuard] Failed to remove PID file: ${(err as Error).message}`);
+		}
 	}
 
 	destroy(): void {

@@ -3,7 +3,7 @@ import { WorkerThreadOptions } from './classes/worker';
 import { ClusterManager } from './core/clusterManager';
 import { ChildProcessOptions } from './classes/child';
 import { ClusterClient } from './core/clusterClient';
-import { ProcessMessage } from './other/message';
+import { ProcessMessage } from './core/message';
 import { Cluster } from './core/cluster';
 import { Worker } from 'worker_threads';
 
@@ -22,45 +22,45 @@ export const Endpoints = {
 
 /** The types of data that can be sent. */
 export enum MessageTypes {
-	'MissingType' = 0,
-	'CustomRequest' = 1,
-	'CustomMessage' = 2,
-	'CustomReply' = 3,
-	'Heartbeat' = 4,
-	'HeartbeatAck' = 5,
-	'ClientBroadcast' = 6,
-	'ClientBroadcastRequest' = 7,
-	'ClientBroadcastResponse' = 8,
-	'ClientBroadcastResponseError' = 9,
-	'ClientRespawn' = 10,
-	'ClientRespawnAll' = 11,
-	'ClientSpawnNextCluster' = 16,
-	'ClientReady' = 17,
-	'ClientEvalRequest' = 18,
-	'ClientEvalResponse' = 19,
-	'ClientEvalResponseError' = 20,
-	'ClientManagerEvalRequest' = 21,
-	'ClientManagerEvalResponse' = 22,
-	'ClientManagerEvalResponseError' = 23,
-	'ManagerReady' = 24,
-	'Kill' = 25,
-	'ClientRespawnSpecific' = 26,
-	'HandlerRequest' = 30,
-	'HandlerResponse' = 31,
-	'HandlerError' = 32,
-	'HandlerRequestAll' = 33,
-	'HandlerRequestTo' = 34,
-	'StoreGet' = 40,
-	'StoreSet' = 41,
-	'StoreDelete' = 42,
-	'StoreHas' = 43,
-	'StoreResponse' = 44,
-	'EventEmit' = 50,
-	'EventForward' = 51,
-	'EventAck' = 52,
-	'EventEmitAndWait' = 53,
-	'RollingRestartRequest' = 60,
-	'RestartRequest' = 61,
+	MissingType = 0,
+	CustomRequest = 1,
+	CustomMessage = 2,
+	CustomReply = 3,
+	Heartbeat = 4,
+	HeartbeatAck = 5,
+	ClientBroadcast = 6,
+	ClientBroadcastRequest = 7,
+	ClientBroadcastResponse = 8,
+	ClientBroadcastResponseError = 9,
+	ClientRespawn = 10,
+	ClientRespawnAll = 11,
+	ClientSpawnNextCluster = 16,
+	ClientReady = 17,
+	ClientEvalRequest = 18,
+	ClientEvalResponse = 19,
+	ClientEvalResponseError = 20,
+	ClientManagerEvalRequest = 21,
+	ClientManagerEvalResponse = 22,
+	ClientManagerEvalResponseError = 23,
+	ManagerReady = 24,
+	Kill = 25,
+	ClientRespawnSpecific = 26,
+	HandlerRequest = 30,
+	HandlerResponse = 31,
+	HandlerError = 32,
+	HandlerRequestAll = 33,
+	HandlerRequestTo = 34,
+	StoreGet = 40,
+	StoreSet = 41,
+	StoreDelete = 42,
+	StoreHas = 43,
+	StoreResponse = 44,
+	EventEmit = 50,
+	EventForward = 51,
+	EventAck = 52,
+	EventEmitAndWait = 53,
+	RollingRestartRequest = 60,
+	RestartRequest = 61,
 }
 
 /** Recursive array of strings. */
@@ -74,7 +74,7 @@ export type Awaitable<T> = T | PromiseLike<T>;
 export type ClusteringMode = 'worker' | 'process';
 /** Any function. */
 export type UnknownFunction = (...args: unknown[]) => unknown;
-/** Data for restart sysytem. */
+/** Data for restart system. */
 export type HeartbeatData = { restarts: number; missedBeats: number; killing: boolean; };
 /** Type that removes null and undefined from a type. */
 export type DeepNonNullable<T> = T extends NonNullable<T> ? T : DeepNonNullable<NonNullable<T>>;

@@ -1,11 +1,11 @@
 // core/cluster.ts
 import { ClusterEvents, ClusterKillOptions, EvalOptions, MessageTypes, Serialized, Awaitable, ValidIfSerializable, SerializableInput, Serializable } from '../types';
-import { ProcessMessage, BaseMessage, DataType } from '../other/message';
+import { ProcessMessage, BaseMessage, DataType } from './message';
 import { Worker as WorkerThread } from 'worker_threads';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 import { RefClusterManager } from './clusterManager';
 import { ClusterHandler } from '../handlers/message';
-import { isChildProcess } from '../other/utils';
+import { isChildProcess } from '../utils/helpers';
 import { ClientRefType } from './clusterClient';
 import { ChildProcess } from 'child_process';
 import { Worker } from '../classes/worker';
@@ -27,6 +27,8 @@ export class Cluster<
 	public thread: null | Worker | Child;
 	/** Represents the last time the cluster received a heartbeat. */
 	public lastHeartbeatReceived?: number;
+	/** Health check interval for worker threads. */
+	private healthCheckInterval?: NodeJS.Timeout;
 	/** Message processor that handles messages from the child process/worker/manager. */
 	private messageHandler?: ClusterHandler;
 	/** Represents the environment data of the cluster. */
@@ -148,17 +150,22 @@ export class Cluster<
 			thread.on('error', this._handleError.bind(this));
 			thread.on('exit', this._handleExit.bind(this));
 
-			const healthCheck = setInterval(() => {
+			this.healthCheckInterval = setInterval(() => {
 				if (!this.thread?.process || ('threadId' in this.thread.process && !this.thread.process.threadId)) {
-					clearInterval(healthCheck);
+					if (this.healthCheckInterval) clearInterval(this.healthCheckInterval);
+					this.healthCheckInterval = undefined;
 					this._handleUnexpectedExit();
 				}
 			}, 5000);
-
 		}
 	}
 
 	public async kill(options?: ClusterKillOptions): Promise<void> {
+		if (this.healthCheckInterval) {
+			clearInterval(this.healthCheckInterval);
+			this.healthCheckInterval = undefined;
+		}
+
 		if (!this.thread) {
 			this.manager.logger.warn(`[Cluster ${this.id}] No thread to kill.`);
 			return;
@@ -289,6 +296,11 @@ export class Cluster<
 
 	/** Exit handler function that handles the cluster's child process/worker exiting. */
 	private _handleExit(exitCode: number | null, signal: NodeJS.Signals | null): void {
+		if (this.healthCheckInterval) {
+			clearInterval(this.healthCheckInterval);
+			this.healthCheckInterval = undefined;
+		}
+
 		this.manager._debug(`[Cluster ${this.id}] Process exited with code ${exitCode}, signal ${signal}`);
 		if (!this.exited) this.emit('death', this, this.thread?.process || null);
 
@@ -320,6 +332,11 @@ export class Cluster<
 
 	/** Handle unexpected exit/crash. */
 	private _handleUnexpectedExit(): void {
+		if (this.healthCheckInterval) {
+			clearInterval(this.healthCheckInterval);
+			this.healthCheckInterval = undefined;
+		}
+
 		if (!this.exited && this.ready) {
 			this.manager._debug(`[Cluster ${this.id}] Detected unexpected exit/crash.`);
 			this.emit('death', this, this.thread?.process || null);

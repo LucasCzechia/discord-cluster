@@ -1,8 +1,8 @@
-import { ClusterClientEvents, EvalOptions, MessageTypes, Serialized, Awaitable, ValidIfSerializable, SerializableInput, ClusterClientData, PackageType, IPCMessage, ClusterStats, ClusterStatEntry } from '../types';
-import { BaseMessage, BaseMessageInput, DataType, ProcessMessage } from '../other/message';
-import { detectLibraryFromClient, getInfo } from '../other/utils';
+import { ClusterClientEvents, EvalOptions, MessageTypes, Serialized, Awaitable, ValidIfSerializable, Serializable, SerializableInput, ClusterClientData, PackageType, IPCMessage, ClusterStats, ClusterStatEntry } from '../types';
+import { BaseMessage, BaseMessageInput, DataType, ProcessMessage } from './message';
+import { detectLibraryFromClient, getInfo } from '../utils/helpers';
 import { ClusterClientHandler } from '../handlers/message';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 import { RefClusterManager } from './clusterManager';
 import { PromiseHandler } from '../handlers/promise';
 import { WorkerClient } from '../classes/worker';
@@ -14,8 +14,7 @@ import { GuildManager } from '../managers/GuildManager';
 import { ChannelManager } from '../managers/ChannelManager';
 import { MemberManager } from '../managers/MemberManager';
 import { UserManager } from '../managers/UserManager';
-import { Serializable } from 'child_process';
-import { Guild, Client } from 'discord.js';
+import { Client, Guild } from 'discord.js';
 import EventEmitter from 'events';
 
 export type ClientRefType = Client;

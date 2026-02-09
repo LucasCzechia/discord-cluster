@@ -9,9 +9,9 @@ export * from './handlers/message';
 export * from './handlers/promise';
 export * from './handlers/queue';
 
-export * from './other/shardingUtils';
-export * from './other/message';
-export * from './other/utils';
+export * from './utils/shardingUtils';
+export * from './core/message';
+export * from './utils/helpers';
 
 export * from './plugins/heartbeat';
 export * from './plugins/reCluster';

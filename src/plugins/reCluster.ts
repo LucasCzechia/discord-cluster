@@ -1,5 +1,5 @@
 import { ClusterManager } from '../core/clusterManager';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 import { ReClusterOptions } from '../types';
 import { Cluster } from '../core/cluster';
 
@@ -76,25 +76,6 @@ export class ReClusterManager {
 			}
 
 			oldClusters.clear();
-		}
-
-		if (options.restartMode === 'rolling') {
-			this.manager._debug('[ReClustering] Starting Rolling Restart.');
-
-			for (let i = 0; i < this.manager.options.totalClusters; i++) {
-				const clusterId = this.manager.options.clusterList[i] || i;
-				const cluster = newClusters.get(clusterId);
-				const oldCluster = this.manager.clusters.get(clusterId);
-
-				if (!cluster) continue;
-				if (oldCluster) {
-					oldCluster.kill({ reason: 'reClustering' });
-					oldClusters.delete(clusterId);
-				}
-
-				this.manager.clusters.set(clusterId, cluster);
-				this.manager._debug(`[ReClustering] [Cluster ${clusterId}] Switched Old Cluster to New Cluster.`);
-			}
 		}
 
 		newClusters.clear();

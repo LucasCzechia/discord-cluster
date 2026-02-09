@@ -1,5 +1,5 @@
 import { MessageTypes, IPCMessage, StoredPromise } from '../types';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 
 type SendFn = (message: unknown) => Promise<void>;
 
@@ -116,14 +116,14 @@ export class StoreClient {
 		return result.value;
 	}
 
-	async set(key: string, value: unknown, options?: { ttl?: number }): Promise<void> {
+	async set(key: string, value: unknown, options?: { ttl?: number; timeout?: number }): Promise<void> {
 		const nonce = ShardingUtils.generateNonce();
 		await this.send({
 			_type: MessageTypes.StoreSet,
 			_nonce: nonce,
 			data: { key, value, ttl: options?.ttl },
 		});
-		await this.createPromise(nonce, 5000);
+		await this.createPromise(nonce, options?.timeout ?? 5000);
 	}
 
 	async has(key: string, timeout: number = 5000): Promise<boolean> {
@@ -137,14 +137,14 @@ export class StoreClient {
 		return result.value;
 	}
 
-	async delete(key: string): Promise<boolean> {
+	async delete(key: string, timeout: number = 5000): Promise<boolean> {
 		const nonce = ShardingUtils.generateNonce();
 		await this.send({
 			_type: MessageTypes.StoreDelete,
 			_nonce: nonce,
 			data: { key },
 		});
-		const result = await this.createPromise(nonce, 5000) as { value: boolean };
+		const result = await this.createPromise(nonce, timeout) as { value: boolean };
 		return result.value;
 	}
 

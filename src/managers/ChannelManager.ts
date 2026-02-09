@@ -1,5 +1,5 @@
 import { SendResult, ChannelInfo, FilePath } from '../types';
-import { AttachmentBuilder, Routes } from 'discord.js';
+import { AttachmentBuilder, Channel, Routes } from 'discord.js';
 import type { ClusterClient } from '../core/clusterClient';
 
 export class ChannelManager {
@@ -8,12 +8,7 @@ export class ChannelManager {
 			const { channelId } = data as { channelId: string };
 			const channel = this.cluster.client.channels.cache.get(channelId);
 			if (!channel) return null;
-			return {
-				id: channel.id,
-				name: 'name' in channel ? (channel as any).name : null,
-				type: channel.type,
-				guildId: 'guildId' in channel ? (channel as any).guildId : null,
-			} satisfies ChannelInfo;
+			return this._serialize(channel);
 		});
 
 		this.cluster.ipc.handle('__channel_send', async (data: unknown) => {
@@ -36,14 +31,7 @@ export class ChannelManager {
 
 	async fetch(channelId: string): Promise<ChannelInfo | null> {
 		const local = this.cluster.client.channels.cache.get(channelId);
-		if (local) {
-			return {
-				id: local.id,
-				name: 'name' in local ? (local as any).name : null,
-				type: local.type,
-				guildId: 'guildId' in local ? (local as any).guildId : null,
-			};
-		}
+		if (local) return this._serialize(local);
 
 		const results = await this.cluster.ipc.requestAll<ChannelInfo | null>('__channel_fetch', { channelId });
 		const found = results.find((v) => v !== null);
@@ -57,7 +45,8 @@ export class ChannelManager {
 				type: data.type,
 				guildId: data.guild_id ?? null,
 			};
-		} catch {
+		} catch (err) {
+			this.cluster.emit('debug', `[ChannelManager] REST fetch failed for ${channelId}: ${(err as Error).message}`);
 			return null;
 		}
 	}
@@ -108,5 +97,14 @@ export class ChannelManager {
 		} catch (err) {
 			return { success: false, error: (err as Error).message };
 		}
+	}
+
+	private _serialize(channel: Channel): ChannelInfo {
+		return {
+			id: channel.id,
+			name: 'name' in channel ? (channel as any).name : null,
+			type: channel.type,
+			guildId: 'guildId' in channel ? (channel as any).guildId : null,
+		};
 	}
 }

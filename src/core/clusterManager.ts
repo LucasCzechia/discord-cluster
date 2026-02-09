@@ -1,7 +1,7 @@
 import { Awaitable, ClusterHeartbeatOptions, ClusterManagerCreateOptions, ClusterManagerEvents, ClusterManagerOptions, ClusteringMode, EvalOptions, Serialized, ValidIfSerializable, Serializable, SerializableInput } from '../types';
 import { ReClusterManager } from '../plugins/reCluster';
 import { HeartbeatManager } from '../plugins/heartbeat';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 import { PromiseHandler } from '../handlers/promise';
 import { StoreManager } from '../ipc/Store';
 import { EventBusManager } from '../ipc/EventBus';
@@ -9,7 +9,7 @@ import { Logger } from '../utils/Logger';
 import { Cluster, RefCluster } from './cluster';
 import { ClientRefType } from './clusterClient';
 import { Queue } from '../handlers/queue';
-import CustomMap from '../other/map';
+import CustomMap from '../utils/CustomMap';
 import { Guild } from 'discord.js';
 import EventEmitter from 'events';
 import path from 'path';
@@ -23,7 +23,6 @@ export class ClusterManager<
 > extends EventEmitter {
 	/** Check if all clusters are ready. */
 	public ready: boolean;
-	/** IPC Broker for the ClusterManager. */
 	/** Options for the ClusterManager */
 	readonly options: ClusterManagerOptions<ClusteringMode>;
 	/** Promise Handler for the ClusterManager */
@@ -74,7 +73,7 @@ export class ClusterManager<
 		process.env.TOTAL_SHARDS = String(options.totalShards);
 		process.env.CLUSTER_COUNT = String(options.totalClusters);
 		process.env.CLUSTER_MANAGER_MODE = options.mode;
-		process.env.DISCORD_TOKEN = String(options.token) || undefined;
+		process.env.DISCORD_TOKEN = options.token || undefined;
 		process.env.CLUSTER_QUEUE_MODE = options.queueOptions?.mode ?? 'auto';
 
 		this.ready = false;

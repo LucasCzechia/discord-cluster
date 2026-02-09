@@ -1,7 +1,7 @@
 import { ClusterManager } from '../core/clusterManager';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 import { HeartbeatData, MessageTypes } from '../types';
-import { BaseMessage } from '../other/message';
+import { BaseMessage } from '../core/message';
 import { Cluster } from '../core/cluster';
 
 /** Handles heartbeats for the cluster manager. */

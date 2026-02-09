@@ -1,5 +1,5 @@
 import { MemberInfo, RolesResult, ManageRolesOptions } from '../types';
-import { Routes } from 'discord.js';
+import { GuildMember, Routes } from 'discord.js';
 import type { ClusterClient } from '../core/clusterClient';
 
 export class MemberManager {
@@ -10,16 +10,9 @@ export class MemberManager {
 			if (!guild) return null;
 			try {
 				const member = await guild.members.fetch(userId);
-				return {
-					id: member.id,
-					displayName: member.displayName,
-					username: member.user.username,
-					avatar: member.user.displayAvatarURL({ forceStatic: false }),
-					roles: Array.from(member.roles.cache.keys()),
-					joinedAt: member.joinedTimestamp,
-					premiumSince: member.premiumSinceTimestamp,
-				} satisfies MemberInfo;
-			} catch {
+				return this._serialize(member);
+			} catch (err) {
+				this.cluster.emit('debug', `[MemberManager] IPC member fetch failed: ${(err as Error).message}`);
 				return null;
 			}
 		});
@@ -30,16 +23,10 @@ export class MemberManager {
 		if (guild) {
 			try {
 				const member = await guild.members.fetch(userId);
-				return {
-					id: member.id,
-					displayName: member.displayName,
-					username: member.user.username,
-					avatar: member.user.displayAvatarURL({ forceStatic: false }),
-					roles: Array.from(member.roles.cache.keys()),
-					joinedAt: member.joinedTimestamp,
-					premiumSince: member.premiumSinceTimestamp,
-				};
-			} catch {}
+				return this._serialize(member);
+			} catch (err) {
+				this.cluster.emit('debug', `[MemberManager] Local member fetch failed for ${userId} in ${guildId}: ${(err as Error).message}`);
+			}
 		}
 
 		const targetCluster = this.cluster.findGuild(guildId);
@@ -49,7 +36,9 @@ export class MemberManager {
 					targetCluster, '__member_fetch', { guildId, userId }, 5000,
 				);
 				if (result) return result;
-			} catch {}
+			} catch (err) {
+				this.cluster.emit('debug', `[MemberManager] IPC requestTo failed for ${userId} in ${guildId}: ${(err as Error).message}`);
+			}
 		}
 
 		try {
@@ -65,7 +54,8 @@ export class MemberManager {
 				joinedAt: data.joined_at ? new Date(data.joined_at).getTime() : null,
 				premiumSince: data.premium_since ? new Date(data.premium_since).getTime() : null,
 			};
-		} catch {
+		} catch (err) {
+			this.cluster.emit('debug', `[MemberManager] REST member fetch failed for ${userId} in ${guildId}: ${(err as Error).message}`);
 			return null;
 		}
 	}
@@ -126,5 +116,17 @@ export class MemberManager {
 		} catch (err) {
 			return { success: false, error: (err as Error).message };
 		}
+	}
+
+	private _serialize(member: GuildMember): MemberInfo {
+		return {
+			id: member.id,
+			displayName: member.displayName,
+			username: member.user.username,
+			avatar: member.user.displayAvatarURL({ forceStatic: false }),
+			roles: Array.from(member.roles.cache.keys()),
+			joinedAt: member.joinedTimestamp,
+			premiumSince: member.premiumSinceTimestamp,
+		};
 	}
 }

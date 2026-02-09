@@ -1,7 +1,7 @@
-import { BaseMessage, DataType, DataTypes, EvalMessage } from '../other/message';
+import { BaseMessage, DataType, DataTypes, EvalMessage } from '../core/message';
 import { ClientRefType, ClusterClient } from '../core/clusterClient';
 import { MessageTypes, PackageType, Serializable, IPCMessage } from '../types';
-import { ShardingUtils } from '../other/shardingUtils';
+import { ShardingUtils } from '../utils/shardingUtils';
 import { Worker } from '../classes/worker';
 import { Cluster } from '../core/cluster';
 import { Child } from '../classes/child';
@@ -123,10 +123,19 @@ export class ClusterHandler {
 				break;
 			}
 			case MessageTypes.HandlerRequest: {
-				const ipcMsg = message as unknown as IPCMessage;
-				for (const [id, cl] of this.cluster.manager.clusters) {
-					if (id === this.cluster.id) continue;
-					cl._sendInstance(message);
+				const reqData = message.data as { _broadcast?: boolean };
+				if (reqData._broadcast === false) {
+					const others = Array.from(this.cluster.manager.clusters.entries())
+						.filter(([id]) => id !== this.cluster.id);
+					if (others.length > 0) {
+						const [, target] = others[Math.floor(Math.random() * others.length)];
+						target._sendInstance(message);
+					}
+				} else {
+					for (const [id, cl] of this.cluster.manager.clusters) {
+						if (id === this.cluster.id) continue;
+						cl._sendInstance(message);
+					}
 				}
 				break;
 			}

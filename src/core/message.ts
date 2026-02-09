@@ -1,6 +1,6 @@
 import { EvalOptions, MessageTypes, SerializableInput, Serializable, PackageType } from '../types';
-import { ClusterClient } from '../core/clusterClient';
-import { Cluster } from '../core/cluster';
+import { ClusterClient } from './clusterClient';
+import { Cluster } from './cluster';
 
 /** Eval message type. */
 export type EvalMessage<P extends object = object> = {

@@ -1,4 +1,4 @@
-import colors from 'colors/safe';
+import pc from 'picocolors';
 import { LoggingOptions } from '../types';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -11,10 +11,10 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
 };
 
 const LEVEL_COLORS: Record<LogLevel, (s: string) => string> = {
-	debug: colors.gray,
-	info: colors.cyan,
-	warn: colors.yellow,
-	error: colors.red,
+	debug: pc.gray,
+	info: pc.cyan,
+	warn: pc.yellow,
+	error: pc.red,
 };
 
 const LEVEL_LABELS: Record<LogLevel, string> = {
@@ -25,11 +25,11 @@ const LEVEL_LABELS: Record<LogLevel, string> = {
 };
 
 const TAG_COLORS = [
-	colors.green,
-	colors.blue,
-	colors.magenta,
-	colors.cyan,
-	colors.yellow,
+	pc.green,
+	pc.blue,
+	pc.magenta,
+	pc.cyan,
+	pc.yellow,
 ];
 
 export class Logger {
@@ -71,7 +71,7 @@ export class Logger {
 
 		if (this.useTimestamps) {
 			const ts = this.timestamp();
-			parts.push(this.useColors ? colors.gray(ts) : ts);
+			parts.push(this.useColors ? pc.gray(ts) : ts);
 		}
 
 		const label = `[${LEVEL_LABELS[level]}]`;
